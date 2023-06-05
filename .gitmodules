@@ -1,0 +1,3 @@
+[submodule "ECOND_Emulator"]
+	path = ECOND_Emulator
+	url = git@github.com:dnoonan08/ECOND_Emulator.git
