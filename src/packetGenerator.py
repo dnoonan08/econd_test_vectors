@@ -10,9 +10,11 @@ def generatePackets(nEvents=100,
                     TOAcutoff=500,
                     cmScale=150,
                     cmExponential=True,
-                    cmWidth=50
+                    cmWidth=50,
+                    seed=None
                    ):
 
+    np.random.seed(seed)
     tc=(np.random.random(37*12*nEvents)<tcRate).astype(int)
     tp=(np.random.random(37*12*nEvents)<tpRate).astype(int)
 
@@ -62,7 +64,7 @@ def generatePackets(nEvents=100,
     cellData=((tc<<31) + (tp<<30) + (adcm1<<20) + (adc_or_tot<<10) + toa)
 
 
-    packets=np.zeros(nEvents*12*40,dtype=int).reshape(100,40,12)
+    packets=np.zeros(nEvents*12*40,dtype=int).reshape(nEvents,40,12)
 
     packets[:,1,:]=cmData
     packets[:,2:39,:] = cellData
