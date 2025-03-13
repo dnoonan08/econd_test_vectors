@@ -1,10 +1,12 @@
 import numpy as np
+import scipy.stats
 
 def generatePackets(nEvents=100,
                     tcRate=0.01,
                     tpRate=0.04,
                     tctp10Rate=0.01,
                     adcScale=220,
+                    adcm1Scale=220,
                     adcExponential=True,
                     adcWidth=40,
                     TOAcutoff=500,
@@ -23,10 +25,10 @@ def generatePackets(nEvents=100,
 
     #make twice as many as needed, then just drop all the ones above 1024, and keep the ones we need
     if adcExponential:
-        adcm1=(np.random.exponential(adcScale,37*12*nEvents*4)).astype(int)
-        adc_or_tot=(np.random.exponential(adcScale,37*12*nEvents*4)).astype(int)
+        adcm1 = scipy.stats.truncexpon(scale=adcm1Scale, b=1024 / adcm1Scale).rvs(37*12*nEvents).astype(int)
+        adc_or_tot = scipy.stats.truncexpon(scale=adcScale, b=1024 / adcScale).rvs(37*12*nEvents).astype(int)
     else:
-        adcm1=(np.random.normal(adcScale,adcWidth,37*12*nEvents*4)).astype(int)
+        adcm1=(np.random.normal(adcm1Scale,adcWidth,37*12*nEvents*4)).astype(int)
         adc_or_tot=(np.random.normal(adcScale,adcWidth,37*12*nEvents*4)).astype(int)
 
     adcm1=adcm1[(adcm1<1024)&(adcm1>=0)][:37*12*nEvents]
@@ -34,9 +36,15 @@ def generatePackets(nEvents=100,
 
     # find TOA for all charges above a threshold
     # 500 is just a cutoff that gives ~10% of hits with a toa for exponential chosen above
-    hasTOA=((adc_or_tot>500) | tc==1)
+    #
+    # Note that we generate a TOA value even for channels without TOA.  This
+    # ensures that we pull the same number of random values from the RNG
+    # regardless of how many TOA values we use, which is important to make the
+    # data more or less continuous with respect to a small change in the input
+    # parameters
+    hasTOA=((adc_or_tot>TOAcutoff) | tc==1)
     toa=np.zeros_like(adc_or_tot)
-    toa[hasTOA]=np.random.normal(150,25,hasTOA.sum()).astype(int)
+    toa[hasTOA]=np.random.normal(150,25,toa.shape).astype(int)[hasTOA]
 
     tc=tc.reshape(nEvents,37,12)
     tp=tp.reshape(nEvents,37,12)
@@ -62,10 +70,10 @@ def generatePackets(nEvents=100,
     cellData=((tc<<31) + (tp<<30) + (adcm1<<20) + (adc_or_tot<<10) + toa)
 
 
-    packets=np.zeros(nEvents*12*40,dtype=int).reshape(100,40,12)
+    packets=np.zeros(nEvents*12*40,dtype=int).reshape(nEvents,40,12)
 
     packets[:,1,:]=cmData
     packets[:,2:39,:] = cellData
 
-    return packets
+    return packets, tc, tp, adcm1, adc_or_tot, toa, cm0, cm1
 
